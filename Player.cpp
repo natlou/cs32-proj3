@@ -52,14 +52,14 @@ Point AwfulPlayer::recommendAttack()
     return m_lastCellAttacked;
 }
 
-void AwfulPlayer::recordAttackResult(Point /* p */, bool /* validShot */,
-                                     bool /* shotHit */, bool /* shipDestroyed */,
-                                     int /* shipId */)
+void AwfulPlayer::recordAttackResult(Point p, bool validShot,
+                                     bool shotHit, bool shipDestroyed,
+                                     int shipId)
 {
       // AwfulPlayer completely ignores the result of any attack
 }
 
-void AwfulPlayer::recordAttackByOpponent(Point /* p */)
+void AwfulPlayer::recordAttackByOpponent(Point p)
 {
       // AwfulPlayer completely ignores what the opponent does
 }
@@ -77,9 +77,75 @@ bool getLineWithTwoIntegers(int& r, int& c)
     return result;
 }
 
-// TODO:  You need to replace this with a real class declaration and
-//        implementation.
-typedef AwfulPlayer HumanPlayer;
+class HumanPlayer : public Player
+{
+public:
+    HumanPlayer(string nm, const Game& g);
+    virtual bool isHuman() const { return true; }
+    virtual bool placeShips(Board& b);
+    virtual Point recommendAttack();
+    virtual void recordAttackResult(Point p, bool validShot, bool shotHit,
+        bool shipDestroyed, int shipId);
+    virtual void recordAttackByOpponent(Point p);
+private:
+    Point m_lastCellAttacked;
+};
+
+HumanPlayer::HumanPlayer(string nm, const Game& g) : Player(nm, g), m_lastCellAttacked(0, 0)
+{}
+
+bool HumanPlayer::placeShips(Board& b)
+{
+    int i;
+    int j;
+    char dir_char;
+    Direction dir;
+
+    for (int k = 0; k < game().nShips(); k++)
+    {
+        bool flag = true;
+
+        while (flag) {
+            cout << "Enter h or v for direction of " << game().shipName(k) << " (length " << game().shipLength(k) << "): ";
+            cin >> dir_char;
+
+            if (dir_char == 'h') {
+                dir = HORIZONTAL;
+                flag = false;
+            }
+            else if (dir_char == 'v') {
+                dir = VERTICAL;
+                flag = false;
+            }
+            else {
+                cout << "Direction must be h or v." << endl;
+            }
+        }
+
+        flag = true; 
+
+        while (flag)
+        {
+            cout << "Enter row and column of leftmost cell (e.g., 3 5): ";
+            cin >> i >> j;
+
+            
+            if (game().isValid(Point(i, j))) 
+                flag = false; 
+        }
+
+        if (!b.placeShip(Point(i, j), k, dir))
+            return false;
+    }
+    return true;
+}
+
+Point HumanPlayer::recommendAttack() { return m_lastCellAttacked; }
+
+void HumanPlayer::recordAttackResult(Point p, bool validShot, bool shotHit, bool shipDestroyed, int shipId) {}
+
+void HumanPlayer::recordAttackByOpponent(Point p) {};
+
 
 //*********************************************************************
 //  MediocrePlayer
