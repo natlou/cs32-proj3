@@ -140,7 +140,16 @@ bool HumanPlayer::placeShips(Board& b)
     return true;
 }
 
-Point HumanPlayer::recommendAttack() { return m_lastCellAttacked; }
+Point HumanPlayer::recommendAttack()
+{
+    int i;
+    int j;
+
+    cout << "Enter the row and column to attack (e.g., 3 5): ";
+    cin >> i >> j;
+       
+    return (Point(i, j));
+}
 
 void HumanPlayer::recordAttackResult(Point p, bool validShot, bool shotHit, bool shipDestroyed, int shipId) {}
 
