@@ -52,17 +52,12 @@ Point AwfulPlayer::recommendAttack()
     return m_lastCellAttacked;
 }
 
-void AwfulPlayer::recordAttackResult(Point p, bool validShot,
-                                     bool shotHit, bool shipDestroyed,
-                                     int shipId)
-{
-      // AwfulPlayer completely ignores the result of any attack
-}
+void AwfulPlayer::recordAttackResult(Point /* p */, bool /* validShot */,
+    bool /* shotHit */, bool /* shipDestroyed */,
+    int /* shipId */) {}
 
-void AwfulPlayer::recordAttackByOpponent(Point p)
-{
-      // AwfulPlayer completely ignores what the opponent does
-}
+void AwfulPlayer::recordAttackByOpponent(Point /* p */) {}
+
 
 //*********************************************************************
 //  HumanPlayer
@@ -80,24 +75,20 @@ bool getLineWithTwoIntegers(int& r, int& c)
 class HumanPlayer : public Player
 {
 public:
-    HumanPlayer(string nm, const Game& g);
+    HumanPlayer(string nm, const Game& g) : Player(nm, g) {}
+    virtual ~HumanPlayer() {}
     virtual bool isHuman() const { return true; }
     virtual bool placeShips(Board& b);
     virtual Point recommendAttack();
     virtual void recordAttackResult(Point p, bool validShot, bool shotHit,
         bool shipDestroyed, int shipId);
     virtual void recordAttackByOpponent(Point p);
-private:
-    Point m_lastCellAttacked;
 };
-
-HumanPlayer::HumanPlayer(string nm, const Game& g) : Player(nm, g), m_lastCellAttacked(0, 0)
-{}
 
 bool HumanPlayer::placeShips(Board& b)
 {
-    int i;
-    int j;
+    int i = -1;
+    int j = -1;
     char dir_char;
     Direction dir;
 
@@ -151,18 +142,54 @@ Point HumanPlayer::recommendAttack()
     return (Point(i, j));
 }
 
-void HumanPlayer::recordAttackResult(Point p, bool validShot, bool shotHit, bool shipDestroyed, int shipId) {}
+void HumanPlayer::recordAttackResult(Point /* p */, bool /* validShot */,
+    bool /* shotHit */, bool /* shipDestroyed */,
+    int /* shipId */) {}
 
-void HumanPlayer::recordAttackByOpponent(Point p) {};
+void HumanPlayer::recordAttackByOpponent(Point /* p */) {}
 
 
 //*********************************************************************
 //  MediocrePlayer
 //*********************************************************************
 
+class MediocrePlayer : public Player
+{
+public:
+    MediocrePlayer(string nm, const Game& g) : Player(nm, g)  {}
+    virtual ~MediocrePlayer() {}
+    virtual bool placeShips(Board& b);
+    virtual Point recommendAttack();
+    virtual void recordAttackResult(Point p, bool validShot, bool shotHit,
+        bool shipDestroyed, int shipId);
+    virtual void recordAttackByOpponent(Point p);
+private:
+    bool recursivePlacements(Board& b);
+
+};
+
 // TODO:  You need to replace this with a real class declaration and
 //        implementation.
-typedef AwfulPlayer MediocrePlayer;
+
+bool MediocrePlayer::recursivePlacements(Board& b)
+{
+
+}
+
+bool MediocrePlayer::placeShips(Board& b)
+{
+    for (int i = 0; i < 50; i++)
+    {
+        b.block();
+
+
+
+        b.unblock();
+    }
+    
+    return (false);
+}
+
 // Remember that Mediocre::placeShips(Board& b) must start by calling
 // b.block(), and must call b.unblock() just before returning.
 
