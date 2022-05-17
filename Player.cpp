@@ -236,7 +236,7 @@ bool MediocrePlayer::placeShips(Board& b)
     return (false);
 }
 
-void MediocrePlayer::recordAttackByOpponent(Point p) {} // does nothing 
+void MediocrePlayer::recordAttackByOpponent(Point /* p */) {} // does nothing 
 
 Point MediocrePlayer::recommendAttack() 
 {

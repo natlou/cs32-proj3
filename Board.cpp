@@ -26,7 +26,7 @@ class BoardImpl
     int m_cols;
     int m_rows;
 
-    vector<int> existingShipIDs;
+    vector<int> ship_tracker;
 };
 
 BoardImpl::BoardImpl(const Game& g)
@@ -39,7 +39,7 @@ BoardImpl::BoardImpl(const Game& g)
     {
         for (int j = 0; j < m_cols; j++)
         {
-            board[i][j] = 0; // board states are initialized 
+            board[i][j] = -1; // board states are initialized 
         }
     }
 }
@@ -56,7 +56,7 @@ void BoardImpl::block()
         for (int c = 0; c < m_game.cols(); c++)
             if (randInt(2) == 0)
             {
-                ; // TODO:  Replace this with code to block cell (r,c)
+                board[r][c] = -2;
             }
 }
 
@@ -65,17 +65,217 @@ void BoardImpl::unblock()
     for (int r = 0; r < m_game.rows(); r++)
         for (int c = 0; c < m_game.cols(); c++)
         {
-            ; // TODO:  Replace this with code to unblock cell (r,c) if blocked
+            if (board[r][c] == -2)
+            {
+                board[r][c] += 1; 
+            }
         }
 }
 
 bool BoardImpl::placeShip(Point topOrLeft, int shipId, Direction dir)
 {
-    return false; // This compiles, but may not be correct
+
+    /*
+        This function attempts to place the specified ship at the specified coordinate, in the 
+        specified direction. The parameter topOrLeft specifies the topmost segment of the ship if 
+        dir is VERTICAL, or the leftmost segment if dir is HORIZONTAL. The parameter 
+        shipId is the ship ID number. This function returns false if the ship cannot be placed 
+        because:
+            1. The shipId is invalid
+            2. The ship would be partly or fully outside the board.
+            3. The ship would overlap an already-placed ship.
+            4. The ship would overlap one or more positions that were blocked by a previous 
+            call to the block function.
+            5. The ship with that ship ID has previously been placed on this Board and not 
+            yet been unplaced since its most recent placement
+    */
+
+    if (shipId < 0 || shipId >= m_game.nShips())
+    {
+        return false;
+    }
+
+    if (topOrLeft.r >= m_rows || topOrLeft.c >= m_cols || topOrLeft.r < 0 || topOrLeft.c < 0) // check 2, 3, 4
+    {
+        return false;
+    }
+
+    if (dir == HORIZONTAL) // check 2, 3, 4
+    {
+
+        if (m_game.shipLength(shipId) + topOrLeft.c > m_cols) // check if there is board space to place the ship 
+        {
+            return false;
+        }
+        else // now, check if there is space to place the ship 
+        {
+            for (int c = topOrLeft.c; c < (m_game.shipLength(shipId) + topOrLeft.c); c++) // since dir = horizontal, we want to loop through every necessary column in a particular row
+            {
+                if (board[topOrLeft.r][c] != -1) // if position is not empty 
+                {
+                    return false;
+                }
+            }
+        }
+
+        // all tests passed, now track ship IDs 
+
+        for (int i = 0; i < m_game.nShips(); i++) // check #5 
+        {
+            if (shipId == i)
+            {
+                for (int id = 0; id < ship_tracker.size(); id++)
+                {
+                    if (ship_tracker[id] == shipId)
+                    {
+                        return false;
+                    }
+                }
+                ship_tracker.push_back(i);
+            }
+        }
+
+        for (int c = topOrLeft.c; c < (m_game.shipLength(shipId) + topOrLeft.c); c++) // all tests passed, place the ship. 
+        { 
+            board[topOrLeft.r][c] = shipId;
+        }
+
+        return true;
+    }
+
+    if (dir == VERTICAL)
+    {
+
+        if (m_game.shipLength(shipId) + topOrLeft.r > m_rows) // check if there is board space to place the ship 
+        {
+            return false;
+        }
+        else // now, check if there is space to place the ship 
+        {
+            for (int r = topOrLeft.r; r < (m_game.shipLength(shipId) + topOrLeft.r); r++) // since dir = horizontal, we want to loop through every necessary column in a particular row
+            {
+                if (board[r][topOrLeft.c] != -1) // if position is not empty 
+                {
+                    return false;
+                }
+            }
+        }
+
+       
+        for (int i = 0; i < m_game.nShips(); i++) // check #5 
+        {
+            if (shipId == i)
+            {
+                for (int id = 0; id < ship_tracker.size(); id++)
+                {
+                    if (ship_tracker[id] == shipId)
+                    {
+                        return false;
+                    }
+                }
+                ship_tracker.push_back(i);
+            }
+        }
+
+
+
+        for (int r = topOrLeft.r; r < (m_game.shipLength(shipId) + topOrLeft.r); r++) // all tests passed, place the ship. 
+        {
+            board[r][topOrLeft.c] = shipId;
+        }
+
+        return true;
+    }
+
+    return false; 
 }
 
 bool BoardImpl::unplaceShip(Point topOrLeft, int shipId, Direction dir)
 {
+    /*
+    This function attempts to remove the specified ship from the board, so the positions it 
+    occupied may be used to place other ships. The parameters are the same as for placeShip. 
+    This function returns false if the ship cannot be removed because:
+
+        1. The shipId is invalid
+        2. The board does not contain the entire ship at the indicated locations.
+
+    If this function returns false, then the board must remain unchanged (i.e. no part of the 
+    ship may be removed upon failure). If this function successfully removes the ship, the 
+    board is updated to reflect that, and the function returns true.
+    */
+    
+    if (shipId < 0 || shipId >= m_game.nShips())
+    {
+        return false;
+    }
+    
+    if (dir == HORIZONTAL)
+    {
+        if (m_game.shipLength(shipId) + topOrLeft.c > m_cols) // check if there is board space to place the ship 
+        {
+            return false;
+        }
+
+        for (int c = topOrLeft.c; c < (m_game.shipLength(shipId) + topOrLeft.c); c++) // since dir = horizontal, we want to loop through every necessary column in a particular row
+        {
+            if (board[topOrLeft.r][c] != shipId) // if position is not empty 
+            {
+                return false;
+            }
+        }
+
+        // tests passed now remove the ship 
+
+
+
+        for (int id = 0; id < ship_tracker.size(); id++)
+        {
+            if (ship_tracker[id] == shipId)
+            {
+                ship_tracker.erase(ship_tracker.begin() + id);
+            }
+        }
+
+        for (int c = topOrLeft.c; c < (m_game.shipLength(shipId) + topOrLeft.c); c++) 
+        {
+            board[topOrLeft.r][c] = -1; 
+        }
+    }
+
+    if (dir == VERTICAL)
+    {
+        if (m_game.shipLength(shipId) + topOrLeft.r > m_rows) // check if there is board space to place the ship 
+        {
+            return false;
+        }
+
+        for (int r = topOrLeft.c; r < (m_game.shipLength(shipId) + topOrLeft.r); r++) // since dir = horizontal, we want to loop through every necessary column in a particular row
+        {
+            if (board[r][topOrLeft.c] != shipId) // if position is not empty 
+            {
+                return false;
+            }
+        }
+
+        // tests passed now remove the ship 
+
+
+
+        for (int id = 0; id < ship_tracker.size(); id++)
+        {
+            if (ship_tracker[id] == shipId)
+            {
+                ship_tracker.erase(ship_tracker.begin() + id);
+            }
+        }
+
+        for (int r = topOrLeft.r; r < (m_game.shipLength(shipId) + topOrLeft.r); r++)
+        {
+            board[r][topOrLeft.c] = -1;
+        }
+    }
+
     return false; // This compiles, but may not be correct
 }
 
@@ -84,23 +284,52 @@ void BoardImpl::display(bool shotsOnly) const
     // array dimensions must be constant for now, but we will alter it. 
     char display[MAXCOLS + 3][MAXROWS + 1];
 
-    for (int c = 0; c < m_rows; c++) //for cols numbering, rows = 2
+    for (int c = 0; c < m_rows; c++) // number the columns 
     {
         display[0][c + 1] = '0' + c;
     }
     for (int c = 1; c < m_rows + 1; c++)
     {
-        display[1][c] = ' ';
+        display[1][c] = ' '; // space after the columns 
     }
-    for (int c = 0; c < m_cols; c++) //numbering for rows. row is 3 size.
+    for (int c = 0; c < m_cols; c++) // number the rows 
     {
         display[c + 2][0] = '0' + c;
     }
 
-    //nrows=2
-    //ncols=3
-    //cout<<endl; the implementation sampel program doesnt have this line of code.
 
+
+    /*
+    This function displays the board, using the following format :
+    1. First line : The function must print two spaces followed by the digits for each
+        column, starting at 0, followed by a newline.You may assume there will be no
+        more than 10 columns.
+        2. Remaining lines : The function must print a digit specifying the row number,
+        starting at 0, followed by a space, followed by the contents of the current row,
+        followed by a newline.You may assume there will be no more than 10 rows.In
+        each of the positions of the row, use the following characters to represent the
+        playing field :
+    a.If the shotOnly parameter is false, use the ship's symbol to display an
+        undamaged ship segment; if the shotsOnly parameter is true, show a
+        period to display an undamaged ship segment.
+        b.Use an X character to display any damaged ship segment.
+        c.Use a period to display water where no attack has been made.
+        d.Use a lower case letter o character to display water where an attack has
+        been made that missed a shipif a ship is DAMAGED we must dispaly it as X instead.
+
+     2. Remaining lines: The function must print a digit specifying the row number,
+        starting at 0, followed by a space, followed by the contents of the current row,
+        followed by a newline. You may assume there will be no more than 10 rows. In
+        each of the positions of the row, use the following characters to represent the
+        playing field:
+        a. If the shotOnly parameter is false, use the ship's symbol to display an
+     undamaged ship segment; if the shotsOnly parameter is true, show a
+     period to display an undamaged ship segment.
+     b. Use an X character to display any damaged ship segment.
+     c. Use a period to display water where no attack has been made.
+     d. Use a lower case letter o character to display water where an attack has
+     been made that missed a ship.
+     */
 
 
     cout << "  ";//2 spaces?
@@ -109,11 +338,11 @@ void BoardImpl::display(bool shotsOnly) const
     {
         for (int r = 0; r < m_cols; r++)
         {
-            if (board[r][c] == -1) //for mediocre players
+            if (board[r][c] == -2) //for mediocre players
             {
-                display[r + 2][c + 1] = '#'; //means blocked.
+                display[r + 2][c + 1] = '#'; //blocked.
             }
-            if (board[r][c] == 0) 
+            if (board[r][c] == -1) 
             {
                 display[r + 2][c + 1] = '.';
             }
@@ -142,10 +371,9 @@ void BoardImpl::display(bool shotsOnly) const
                 {
                     if (display[r][c] == d)
                     {
-                        //actually after palcing all the hsips, its just the index of the shipsin the vector, which i have a size function to keep track of.
-                        if (existingShipIDs.size() > d)
+                        if (ship_tracker.size() > d)
                         {
-                            display[r + 2][c + 1] = m_game.shipSymbol(existingShipIDs[d]);
+                            display[r + 2][c + 1] = m_game.shipSymbol(ship_tracker[d]);
                         }
                     }
                 }
@@ -153,78 +381,14 @@ void BoardImpl::display(bool shotsOnly) const
         }
     }
 
-
-
-    //if a ship is DAMAGED we must dispaly it as X instead.
-    /*
-     Remaining lines: The function must print a digit specifying the row number,
-     starting at 0, followed by a space, followed by the contents of the current row,
-     followed by a newline. You may assume there will be no more than 10 rows. In
-     each of the positions of the row, use the following characters to represent the
-     playing field:
-     a. If the shotOnly parameter is false, use the ship's symbol to display an
-     undamaged ship segment; if the shotsOnly parameter is true, show a
-     period to display an undamaged ship segment.
-     b. Use an X character to display any damaged ship segment.
-     c. Use a period to display water where no attack has been made.
-     d. Use a lower case letter o character to display water where an attack has
-     been made that missed a ship.
-     */
-
-     //for hsotsonly it literally means, SHOTS ONLY LOL. so your literally only seeing water or if i hit a ship.
-
-     //now use the shotsonly test to see if I shouldp lace a o or an X, X for displayBoard[r][c]!=0, and true, and a o for displayBoard[r][c]==0
-     //basically the code below now doesn't seem necssary at all, ill take it out if it works.
-    for (int c = 0; c < m_rows; c++)
+    if (shotsOnly) 
     {
-        for (int r = 0; r < m_cols; r++)
+        for (int c = 0; c < m_rows + 1; c++) 
         {
-
-            if (board[r][c] > 1000) //a ship!
-            { //so a ship. I should verify that my r and c is not going to be hitting any of the 0-9 on the cout board.
-                display[r + 2][c + 1] = 'X';
-            }
-            if (board[r][c] == 1000) //a hit water.
+            for (int r = 0; r < m_cols + 2; r++) 
             {
-                display[r + 2][c + 1] = 'o';
-            }
-            if (board[r][c] == -2) //for mediocre players
-            {
-                display[r + 2][c + 1] = '#'; //means blocked.
-            }
-        }
-        //endl;
-    }
-
-    //how about just straight up hardcode first row, ignore the first row here, and then print rest
-
-    if (!shotsOnly) //everytjing allowed
-    {
-        for (int c = 0; c < m_rows + 1; c++) //1 space with number of rows
-        {
-            for (int r = 0; r < m_cols + 2; r++) //should be 2 spaces due to number of cols
-            {
-                if (c == 0 && r < 2) //r>9
+                if (c == 0 && r < 2) 
                 {
-                    //cout<<r<<endl;
-                    continue;
-                }
-
-
-                cout << display[r][c];
-            }
-            cout << endl;
-        }
-    }
-    if (shotsOnly) //everytjing not allowed
-    {
-        for (int c = 0; c < m_rows + 1; c++) //1 space with number of rows
-        {
-            for (int r = 0; r < m_cols + 2; r++) //should be 2 spaces due to number of cols
-            {
-                if (c == 0 && r < 2) //r>9
-                {
-                    //cout<<r<<endl;
                     continue;
                 }
                 if (r > 1 && c > 0)
@@ -235,12 +399,12 @@ void BoardImpl::display(bool shotsOnly) const
                     }
                     else
                     {
-                        cout << '.';//its just a normal water if we don't know what it is.
+                        cout << '.';
                     }
                 }
                 else
                 {
-                    cout << display[r][c]; //prints out the number of row and col
+                    cout << display[r][c]; 
                 }
 
             }
@@ -252,11 +416,39 @@ void BoardImpl::display(bool shotsOnly) const
 
 bool BoardImpl::attack(Point p, bool& shotHit, bool& shipDestroyed, int& shipId)
 {
+    /*
+    This function is used to submit an attack against the board.The function must return
+        false if the attack is invalid(the attack point is outside of the board area, or an attack is
+            made on a previously attacked location).The function returns true if the attack is valid,
+        regardless of whether or not any ship is damaged.
+        If any undamaged segment of a ship is at position p on the board, then the shotHit
+        parameter must be set to true, and the segment must henceforth be considered a damaged
+        segment.Otherwise the shotHit parameter must be set to false.
+        If this specific attack destroyed the last undamaged segment of a ship, then the
+        shipDestroyed parameter must be set to true and the shipId parameter must be set to the
+        ship ID of the ship that was destroyed; otherwise the shipDestroyed parameter must be
+        set to false and shipId must be left unchanged.
+        It's up to you whether to set to some value or leave unchanged:
+        1. shotHit, shipDestroyed, and shipId if the attack is invalid
+        2. shipDestroyed and shipId if the attack missed
+        1
+    */
+
+    if (p.r < 0 || p.r >= m_rows)
+    {
+        return false; 
+    }
+    if (p.c < 0 || p.c >= m_cols)
+    {
+        return false; 
+    }
+
     return false; // This compiles, but may not be correct
 }
 
 bool BoardImpl::allShipsDestroyed() const
 {
+
     return false; // This compiles, but may not be correct
 }
 
