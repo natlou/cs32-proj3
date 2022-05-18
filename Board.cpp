@@ -346,12 +346,12 @@ void BoardImpl::display(bool shotsOnly) const
             {
                 display[r + 2][c + 1] = '.';
             }
-            if (board[r][c] == 1) 
+            if (board[r][c] == -3) 
             {
                 display[r + 2][c + 1] = 'o';
 
             }
-            if (board[r][c] > 1) 
+            if (board[r][c] <= -4) 
             {
                 display[r + 2][c + 1] = 'X';
             }
@@ -383,15 +383,15 @@ void BoardImpl::display(bool shotsOnly) const
 
     if (shotsOnly) 
     {
-        for (int c = 0; c < m_rows + 1; c++) 
+        for (int r = 0; r < m_rows + 1; r++) 
         {
-            for (int r = 0; r < m_cols + 2; r++) 
+            for (int c = 0; c < m_cols + 2; c++) 
             {
-                if (c == 0 && r < 2) 
+                if (r == 0 && c < 2) 
                 {
                     continue;
                 }
-                if (r > 1 && c > 0)
+                if (c > 1 && r > 0)
                 {
                     if (display[r][c] == 'X' || display[r][c] == 'o' || display[r][c] == '.')
                     {
@@ -434,7 +434,11 @@ bool BoardImpl::attack(Point p, bool& shotHit, bool& shipDestroyed, int& shipId)
         1
     */
 
-    if (p.r < 0 || p.r >= m_rows)
+    shotHit = false;
+    shipDestroyed = false;
+    shipId = -1;
+
+    if (p.r < 0 || p.r >= m_rows) // outside of board 
     {
         return false; 
     }
@@ -443,12 +447,59 @@ bool BoardImpl::attack(Point p, bool& shotHit, bool& shipDestroyed, int& shipId)
         return false; 
     }
 
-    return false; // This compiles, but may not be correct
+    if (board[p.r][p.c] <= -3) // attack made on previous attack location
+    {
+        return false;
+    }
+
+    if (board[p.r][p.c] == -1) // hits water 
+    {
+        board[p.r][p.c] == -3;
+        return true;
+    }
+
+    if (board[p.r][p.c] >= 0)
+    {
+        shipId = board[p.r][p.c];
+        board[p.r][p.c] = -4; 
+        shotHit = true; 
+
+        shipDestroyed = true; 
+        for (int i = 0; i < m_rows; i++)
+        {
+            for (int j = 0; j < m_cols; j++)
+            {
+                if (board[i][j] == shipId)
+                {
+                    shipDestroyed = false;
+                }
+            }
+        }
+
+        if (shipDestroyed)
+        {
+            ship_tracker.insert(ship_tracker.begin() + shipId, -1);
+        }
+        return true; 
+    }
+
+    return false; // if it's == -2
 }
 
 bool BoardImpl::allShipsDestroyed() const
 {
+    int runningSum = 0;
 
+    for (int val : ship_tracker)
+    {
+        runningSum -= val;
+    }
+
+    if (runningSum == m_game.nShips())
+    {
+        return true; 
+    }
+  
     return false; // This compiles, but may not be correct
 }
 
