@@ -1,3 +1,2 @@
-﻿  Game.cpp
-C:\Users\natlo\Desktop\spring_2022\CS 32\proj3\proj3\Game.cpp(83,38): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+﻿  Player.cpp
   proj3.vcxproj -> C:\Users\natlo\Desktop\spring_2022\CS 32\proj3\x64\Debug\proj3.exe
