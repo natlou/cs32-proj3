@@ -5,6 +5,7 @@
 
 using namespace std;
 
+
 class BoardImpl
 {
   public:
@@ -46,7 +47,15 @@ BoardImpl::BoardImpl(const Game& g)
 
 void BoardImpl::clear()
 {
-    // This compiles, but may not be correct
+    //fill board with '.'
+    for (int i = 0; i < m_game.rows(); i++) {
+        for (int j = 0; j < m_game.cols(); j++) {
+            board[i][j] = '.';
+        }
+    }
+
+    //clear vectors that store ships
+    ship_tracker.clear(); 
 }
 
 void BoardImpl::block()
@@ -281,137 +290,25 @@ bool BoardImpl::unplaceShip(Point topOrLeft, int shipId, Direction dir)
 
 void BoardImpl::display(bool shotsOnly) const
 {
-    // array dimensions must be constant for now, but we will alter it. 
-    char display[MAXCOLS + 3][MAXROWS + 1];
-
-    for (int c = 0; c < m_rows; c++) // number the columns 
+    cout << " ";
+    for (int c = 0; c < m_game.cols(); c++)
     {
-        display[0][c + 1] = '0' + c;
+        cout << c;
     }
-    for (int c = 1; c < m_rows + 1; c++)
+    cout << endl;
+    for (int i = 0; i < m_game.rows(); i++)
     {
-        display[1][c] = ' '; // space after the columns 
-    }
-    for (int c = 0; c < m_cols; c++) // number the rows 
-    {
-        display[c + 2][0] = '0' + c;
-    }
-
-
-
-    /*
-    This function displays the board, using the following format :
-    1. First line : The function must print two spaces followed by the digits for each
-        column, starting at 0, followed by a newline.You may assume there will be no
-        more than 10 columns.
-        2. Remaining lines : The function must print a digit specifying the row number,
-        starting at 0, followed by a space, followed by the contents of the current row,
-        followed by a newline.You may assume there will be no more than 10 rows.In
-        each of the positions of the row, use the following characters to represent the
-        playing field :
-    a.If the shotOnly parameter is false, use the ship's symbol to display an
-        undamaged ship segment; if the shotsOnly parameter is true, show a
-        period to display an undamaged ship segment.
-        b.Use an X character to display any damaged ship segment.
-        c.Use a period to display water where no attack has been made.
-        d.Use a lower case letter o character to display water where an attack has
-        been made that missed a shipif a ship is DAMAGED we must dispaly it as X instead.
-
-     2. Remaining lines: The function must print a digit specifying the row number,
-        starting at 0, followed by a space, followed by the contents of the current row,
-        followed by a newline. You may assume there will be no more than 10 rows. In
-        each of the positions of the row, use the following characters to represent the
-        playing field:
-        a. If the shotOnly parameter is false, use the ship's symbol to display an
-     undamaged ship segment; if the shotsOnly parameter is true, show a
-     period to display an undamaged ship segment.
-     b. Use an X character to display any damaged ship segment.
-     c. Use a period to display water where no attack has been made.
-     d. Use a lower case letter o character to display water where an attack has
-     been made that missed a ship.
-     */
-
-
-    cout << "  ";//2 spaces?
-
-    for (int c = 0; c < m_rows; c++)
-    {
-        for (int r = 0; r < m_cols; r++)
+        cout << i; 
+        for (int j = 0; j < m_game.cols(); j++)
         {
-            if (board[r][c] == -2) //for mediocre players
-            {
-                display[r + 2][c + 1] = '#'; //blocked.
-            }
-            if (board[r][c] == -1) 
-            {
-                display[r + 2][c + 1] = '.';
-            }
-            if (board[r][c] == -3) 
-            {
-                display[r + 2][c + 1] = 'o';
-
-            }
-            if (board[r][c] <= -4) 
-            {
-                display[r + 2][c + 1] = 'X';
-            }
+            if (board[i][j] <= -4) cout << 'X';
+            else if (board[i][j] == -3) cout << 'o';
+            else if (board[i][j] == -2) cout << '#';
+            else if (board[i][j] == -1) cout << '.';
+            else cout << m_game.shipSymbol(board[i][j]);
         }
+        cout << endl;
     }
-
-
-
-    if(!shotsOnly)
-    {
-        for (int c = 0; c < m_rows; c++)
-        {
-            for (int r = 0; r < m_cols; r++)
-            {
-
-                for (int d = 0; d < m_game.nShips(); d++)
-                {
-                    if (display[r][c] == d)
-                    {
-                        if (ship_tracker.size() > d)
-                        {
-                            display[r + 2][c + 1] = m_game.shipSymbol(ship_tracker[d]);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (shotsOnly) 
-    {
-        for (int r = 0; r < m_rows + 1; r++) 
-        {
-            for (int c = 0; c < m_cols + 2; c++) 
-            {
-                if (r == 0 && c < 2) 
-                {
-                    continue;
-                }
-                if (c > 1 && r > 0)
-                {
-                    if (display[r][c] == 'X' || display[r][c] == 'o' || display[r][c] == '.')
-                    {
-                        cout << display[r][c];
-                    }
-                    else
-                    {
-                        cout << '.';
-                    }
-                }
-                else
-                {
-                    cout << display[r][c]; 
-                }
-
-            }
-            cout << endl;
-        }
-    }
-
 }
 
 bool BoardImpl::attack(Point p, bool& shotHit, bool& shipDestroyed, int& shipId)
@@ -454,7 +351,7 @@ bool BoardImpl::attack(Point p, bool& shotHit, bool& shipDestroyed, int& shipId)
 
     if (board[p.r][p.c] == -1) // hits water 
     {
-        board[p.r][p.c] == -3;
+        board[p.r][p.c] = -3;
         return true;
     }
 

@@ -88,6 +88,8 @@ public:
 
 bool HumanPlayer::placeShips(Board& b)
 {
+    cout << name() << " must place " << game().nShips() << " ships." << endl;
+
     int i = -1;
     int j = -1;
     char dir_char;
@@ -95,6 +97,8 @@ bool HumanPlayer::placeShips(Board& b)
 
     for (int k = 0; k < game().nShips(); k++)
     {
+        b.display(false); 
+
         bool flag = true;
 
         while (flag) {
@@ -110,7 +114,9 @@ bool HumanPlayer::placeShips(Board& b)
                 flag = false;
             }
             else {
-                cout << "Direction must be h or v." << endl;
+                cout << "Direction must be h or v." << endl; 
+                cin.clear();  
+                cin.ignore(10000, '\n');
             }
         }
 
@@ -119,15 +125,35 @@ bool HumanPlayer::placeShips(Board& b)
         while (flag)
         {
             cout << "Enter row and column of leftmost cell (e.g., 3 5): ";
-            cin >> i >> j;
-
-            
-            if (game().isValid(Point(i, j))) 
-                flag = false; 
+            if (!getLineWithTwoIntegers(i, j))
+            {
+                cout << "You must enter two integers." << endl;
+            }
+            else if (game().isValid(Point(i, j)))
+            {
+                if (dir == HORIZONTAL)
+                {
+                    if (!b.placeShip(Point(i,j), k, HORIZONTAL))
+                    {
+                        cout << "The ship can not be placed there." << endl;
+                    }
+                    else {
+                        flag = false;
+                    }
+                  
+                }
+                else if (dir == VERTICAL)
+                {
+                    if (!b.placeShip(Point(i,j), k, VERTICAL))
+                    {
+                        cout << "The ship can not be placed there." << endl;
+                    }
+                    else {
+                        flag = false;
+                    }
+                }
+            }
         }
-
-        if (!b.placeShip(Point(i, j), k, dir))
-            return false;
     }
     return true;
 }
@@ -154,332 +180,200 @@ void HumanPlayer::recordAttackByOpponent(Point /* p */) {}
 //  MediocrePlayer
 //*********************************************************************
 
-class MediocrePlayer : public Player
-{
+class MediocrePlayer : public Player {
 public:
-    MediocrePlayer(string nm, const Game& g) : Player(nm, g), m_lastCellAttacked(0, 0) { state1 = true; }
-    virtual ~MediocrePlayer() {}
+    MediocrePlayer(string nm, const Game& g);
     virtual bool placeShips(Board& b);
     virtual Point recommendAttack();
-    virtual void recordAttackResult(Point p, bool validShot, bool shotHit,
-        bool shipDestroyed, int shipId);
+    virtual void recordAttackResult(Point p, bool validShot, bool shotHit, bool shipDestroyed, int shipId);
     virtual void recordAttackByOpponent(Point p);
 private:
-    bool DFS(Board& b, Point p, int id, stack<Point> current_ships);
-    Point m_lastCellAttacked;
-    vector<Point> attackedCells;
-    vector<Point> limitedCells;
-    vector<Point> attackedLimitedCells;
-    Point state2_point;
+    bool DFS(Board& b, int counter);
+    Point state2_initializer; //keeps track of the point that caused transition to state 2
     bool state1;
+    vector<Point> attacked;
+    
 };
 
-// TODO:  You need to replace this with a real class declaration and
-//        implementation.
+MediocrePlayer::MediocrePlayer(string nm, const Game& g) : Player(nm, g), state1(true) {}
 
-bool MediocrePlayer::DFS(Board& b, Point p, int id, stack<Point> current_ships)
+
+bool MediocrePlayer::DFS(Board& b, int id)
 {
-    if (id == game().nShips()) return true; //return true if all the ships have been placed 
+    vector<Point> blacklist; // keeps track of the points that we dont want to visit 
 
-    if (p.c == game().cols())
-    {
-        return DFS(b, Point(p.r + 1, 0), id, current_ships); // if the column is past the last one, it goes to the next row
-    }
 
-    if (p.r == game().rows()) // if the last row was passed, then it does something 
-    {
-        if (id == 0) {
-            return false; // if it backtracks to the first ship, or the first ship cannot find a place to be placed anymore, then it returns false 
+    if (id == game().nShips()) // base case 
+        return true;
+
+    for (int i = 0; i < game().rows(); i++) { 
+
+        for (int j = 0; j < game().cols(); j++) {
+
+            Point p(i, j);
+
+            bool blacklisted = false;
+
+            for (int v = 0; v < blacklist.size(); v++) { // check if the current point is in the blacklist 
+
+                if (p.r == blacklist[v].r && p.c == blacklist[v].c)
+                    blacklisted = true;
+            }
+
+            if (blacklisted == false && b.placeShip(p, id, HORIZONTAL)) 
+            { 
+                if (DFS(b, id + 1) == false ) { // backtrack if next ship cannot be placed
+                    b.unplaceShip(p, id, HORIZONTAL);
+                    blacklist.push_back(p);  
+                    i = 0;
+                    j = 0;
+                }
+                else return true;
+             
+            }
+
+            else if (blacklisted == false && b.placeShip(p, id, VERTICAL))
+            {
+                if (DFS(b, id + 1) == false) { 
+                    b.unplaceShip(p, id, VERTICAL);
+                    blacklist.push_back(p); 
+                    i = 0;
+                    j = 0;
+                }
+                else return true;
+            }
         }
-        
-        Point backtrack = current_ships.top(); // backtracks
-
-        current_ships.pop(); 
-
-        return DFS(b, Point(backtrack.r, backtrack.c + 1), id - 1, current_ships); // tries to replace the last ship placed (in the stack)
-
     }
-
-    if (b.placeShip(p, id, HORIZONTAL)) // tries horizontal placement 
-    {
-        current_ships.push(p);
-        DFS(b, Point(0, 0), id + 1, current_ships);
-    } 
-    else if (b.placeShip(p, id, VERTICAL))
-    {
-        current_ships.push(p);
-        DFS(b, Point(0, 0), id + 1, current_ships);
-    }
-    
-    return DFS(b, Point(p.r, p.c + 1), id, current_ships); // next column 
-
+    return false; 
 }
 
-bool MediocrePlayer::placeShips(Board& b)
-{
 
+bool MediocrePlayer::placeShips(Board& b) {
+    for (int i = 0; i < 50; i++) { 
+        b.block(); 
 
-    for (int i = 0; i < 50; i++)
-    {
-        b.block();
-
-        stack<Point> empty_stack;
-
-        if (DFS(b, Point(0, 0), 0, empty_stack))
+        if (DFS(b, 0)) 
         {
-            return (true);
+            b.unblock();
+            return true;
         }
 
-        b.unblock();
+        b.unblock(); 
     }
-    
-    return (false);
+    return false;
 }
 
-void MediocrePlayer::recordAttackByOpponent(Point /* p */) {} // does nothing 
 
-Point MediocrePlayer::recommendAttack() 
-{
-    if (state1)
-    {
-        m_lastCellAttacked = game().randomPoint();
+Point MediocrePlayer::recommendAttack() {
 
-        if (attackedCells.size() > 0)
+    Point attack;
+
+    if (state1) { // state 1 basically just wants us to choose a random point to attack until we hit one 
+
+        bool invalid_point = true;
+
+        while (invalid_point)
         {
-            bool unique = false;
-            while (!unique)
-            {
-                m_lastCellAttacked = game().randomPoint(); 
-                for (int c = 0; c < attackedCells.size(); c++)
-                {
-                    if (m_lastCellAttacked.r == attackedCells[c].r && m_lastCellAttacked.c == attackedCells[c].c)
-                    {
-                        unique = false;
-                        break;
-                    }
-                    else
-                    {
-                        unique = true;
-
-                    }
-                }
+            invalid_point = false;
+            attack = game().randomPoint(); // generate random point
+            for (int i = 0; i < attacked.size(); i++) { //check if point is invalid
+                if (attack.r == attacked[i].r && attack.c == attacked[i].c)
+                    invalid_point = true;
             }
-        }
+        }; 
+
+        return attack;
     }
-    if (!state1) // currently in state2 
-    {
-        if (limitedCells.size() > 0)
+
+    else { // state 2
+
+        bool invalid_point = true;
+        bool initialized_point = false;
+
+        while (invalid_point == true|| initialized_point == false); // check if the point is valid & not the initialized point 
         {
-            int count = 0;
-            for (int c = 0; c < attackedLimitedCells.size(); c++)
-            {
-                for (int d = 0; d < limitedCells.size(); d++)
-                {
-                    if (attackedLimitedCells[c].r == limitedCells[d].r && attackedLimitedCells[c].c == limitedCells[d].r)
-                    {
-                        count++;
-                    }
-                }
+            invalid_point = false;
+            initialized_point = false;
+            attack = game().randomPoint(); // pick another random point 
+            for (int i = 0; i < attacked.size(); i++) { 
+                if (attack.r == attacked[i].r && attack.c == attacked[i].c)
+                    invalid_point = true;
             }
-            if (count >= limitedCells.size())
-            {
-                state1 = true;
-                return recommendAttack(); //recursively attack
-            }
-
-        }
-
-        if (attackedCells.size() > 0)
-        {
-
-            bool unique = false;
-            bool valid = true;
-            while (!unique)
-            {
-                valid = true;
-                m_lastCellAttacked = game().randomPoint();
-
-                for (int c = 0; c < limitedCells.size(); c++)
-                {
-                 
-                    if (m_lastCellAttacked.r == limitedCells[c].r && m_lastCellAttacked.c == limitedCells[c].c)
-                    {
- 
-                        if (attackedLimitedCells.size() > 0)
-                        {
-                            for (int d = 0; d < attackedLimitedCells.size(); d++)
-                            {
-                                if (attackedLimitedCells[d].c == m_lastCellAttacked.c && attackedLimitedCells[d].r == m_lastCellAttacked.r)
-                                {
-                                    valid = false;
-                                }
-                            }
-                        }
-                        if (valid)
-                        {
-                            attackedLimitedCells.push_back(m_lastCellAttacked);
-                            unique = true;
-                            break; 
-                        }
-                    }
-                    else
-                    {
-                        unique = false;
-                    }
-                }
+            if ( ( ( ((state2_initializer.r - attack.r) <= 4) && ((state2_initializer.r - attack.r) >= -4)) && state2_initializer.c == attack.c)
+                ||  ( ( ((state2_initializer.c - attack.c) <= 4) && ((state2_initializer.c - attack.c) >= -4)) && state2_initializer.r == attack.r)) {
+                initialized_point = true; // check if point is the initalized point 
             }
         }
-
+        return attack;
     }
-    return m_lastCellAttacked;
+
+    return attack;
 }
 
-void MediocrePlayer::recordAttackResult(Point p, bool validShot, bool shotHit,
-    bool shipDestroyed, int shipId) 
-{
-    attackedCells.push_back(p); //so i dont hit again
-    bool justSwitched = false;
-    if (state1)
-    {
-        if (!shotHit)
-        {
+void MediocrePlayer::recordAttackResult(Point p, bool valid_shot, bool shot_hit, bool ship_destroyed, int ship_id) {
+    if (valid_shot == false) return; 
+
+    attacked.push_back(p); //add p to list of attacked cells
+
+    if (state1) { //state 1
+        if (!shot_hit) //if shot didnt hit, stay in state 1
+            return;
+        else {
+            if (ship_destroyed) //if ship destroyed, stay in state 1
+                return;
+            state2_initializer = p; // state 2 initializer
+            return;
+        }
+    }
+
+    if (!state1) { 
+        int initialized = 0;
+        int max = 0;
+
+        // check if points have already been attacked  (rows)
+        for (int i = -4; i < 5; i++) {
+            Point test(state2_initializer.r + i, state2_initializer.c);
+            if (game().isValid(test))
+                max += 1;
+            for (int v = 0; v < attacked.size(); v++) {
+                if ((attacked[v].r == state2_initializer.r + i) && (attacked[v].c == state2_initializer.c))
+                    initialized += 1;
+            }
+        }
+
+        // columns
+        for (int i = -4; i < 5; i++) {
+            Point test(state2_initializer.r, state2_initializer.c + i);
+            if (game().isValid(test))
+                max += 1;
+            for (int v = 0; v < attacked.size(); v++) {
+                if ((attacked[v].c == state2_initializer.c + i) && (attacked[v].r == state2_initializer.r))
+                    initialized += 1;
+            }
+        }
+
+        if (initialized == max) { //if the points reach the max, then return to state 1 
             state1 = true;
+            return;
         }
-        if (shotHit && shipDestroyed)
-        {
-            state1 = true;
+
+
+        if (shot_hit == false) 
+            return;
+        else {
+            if (ship_destroyed) { 
+                state1 = true; 
+                return;
+            }
+            else { 
+                return;
+            }
         }
-        else if (shotHit && !shipDestroyed)
-        {
-            state1 = false;
-            justSwitched = true;
-        }
+
     }
-    if (!state1)
-    {
-        /*In state 2, let (r,c) be the position that was hit that caused the transition from state
-         1 to state 2. In state 2, recommendAttack returns a randomly chosen position
-         drawn from a limited set: the set of valid positions no more than 4 steps away
-         from (r,c) either horizontally or vertically, that have not been chosen before. This
-         set defines a cross around (r,c). For example, assume that in state 1, a shot was
-         fired on position (5,3) that hit a ship, but did not destroy it, resulting in:
-         */
-        if (justSwitched)
-        {
-            // cout<<"YOU FUKING TRIGGERED ME"<<endl;
-
-            if (limitedCells.size() > 0)
-            {
-                for (int c = 0; c < limitedCells.size(); c++)
-                {
-                    limitedCells.pop_back();
-                }
-            }
-
-            state2_point = p; //4 4   0  0
-            int rS2Left = state2_point.r - 4; //4 0    - 4 0    (my row left so -4 off grid
-            int rS2Right = state2_point.r + 4;  //4 8     8  0
-            int cS2Top = state2_point.c - 4; //0 4     -4   4
-            int cS2Bot = state2_point.c + 4; // 8 4
-
-            attackedLimitedCells.push_back(state2_point);
-
-
-            //run a check to see that if these values are also in the point of attacked cells. if they are, then dont even bother trying to push it in as a coordinate. also, check if the coordinate to push in is a valid one to begin with. if this is implemented right, the above wouldn't have to worry about iterators at all.
-            for (int c = rS2Left; c <= rS2Right; c++) //-4 -3 -2 -1 0 1 2 3
-            {
-                bool canpush = true;
-                for (int d = 0; d < attackedCells.size(); d++)
-                {//if attacked cells
-             //1 0
-                    if (attackedCells[d].r == c && attackedCells[d].c == state2_point.c)
-                    {
-                        canpush = false;
-                    }
-                    else
-                    {
-
-                    }
-                }
-                Point tryingtoPush;
-                tryingtoPush.r = c;
-                tryingtoPush.c = state2_point.c;
-                if (!game().isValid(tryingtoPush))
-                {
-                    canpush = false;
-                }
-
-                if (canpush)
-                {
-                    limitedCells.push_back(Point(c, state2_point.c));//coordinates for left to right
-                }
-            }
-            for (int c = cS2Top; c <= cS2Bot; c++)
-            {
-                bool canpush = true;
-                for (int d = 0; d < attackedCells.size(); d++)
-                {//if attacked cells
-
-                    if (attackedCells[d].c == c && attackedCells[d].r == state2_point.r)
-                    {
-                        canpush = false;
-                    }
-                    else
-                    {
-
-                    }
-                }
-                Point tryingtoPush;
-                tryingtoPush.r = c;
-                tryingtoPush.c = state2_point.r;
-                if (!game().isValid(tryingtoPush))
-                {
-                    canpush = false;
-                }
-                if (canpush)
-                {
-                    limitedCells.push_back(Point(state2_point.r, c));//top to bot
-
-                }
-
-                //limitedCells.push_back(Point(c,PointofState2.c));//coordinates for left to right
-                //oh shoot if theres a new one u have to pop_back all the limited cells so u dont bait it .
-            }
-
-
-            //last but not least, if all possible checks in that area can be checked is done for, then i have to say to go back to random selection.
-
-        }
-        else
-        {
-            //  cout<<"Resuming state 2 barage"<<endl;
-            if (!shotHit)//miss
-            {
-                state1 = false;
-            }
-            else if (shotHit && !shipDestroyed)
-            {
-                state1 = false;
-            }
-            else if (shotHit && shipDestroyed)
-            {
-                state1 = true; //i go back to normal
-            //    cout<<"Since i sank ur ship im going back to normal me."<<endl;
-                /*
-                for(int c=0;c<attackedLimitedCells.size();c++)
-                {
-                    attackedLimitedCells.pop_back();
-                }
-                 */
-            }
-        }
-    }
-
-
-
 }
-// Remember that Mediocre::placeShips(Board& b) must start by calling
-// b.block(), and must call b.unblock() just before returning.
+
+void MediocrePlayer::recordAttackByOpponent(Point p) { ; }
 
 //*********************************************************************
 //  GoodPlayer
@@ -487,7 +381,173 @@ void MediocrePlayer::recordAttackResult(Point p, bool validShot, bool shotHit,
 
 // TODO:  You need to replace this with a real class declaration and
 //        implementation.
-typedef AwfulPlayer GoodPlayer;
+//typedef AwfulPlayer GoodPlayer;
+
+class GoodPlayer : public Player {
+public:
+    GoodPlayer(string nm, const Game& g);
+    virtual bool placeShips(Board& b);
+    virtual Point recommendAttack();
+    virtual void recordAttackResult(Point p, bool validShot, bool shotHit, bool shipDestroyed, int shipId);
+    virtual void recordAttackByOpponent(Point p);
+private:
+    vector<Point> attacked;
+    Point state2_initializer;
+    bool isValid(Point p);
+    bool state1;
+    stack<Point> targets;
+};
+
+GoodPlayer::GoodPlayer(string nm, const Game& g) : Player(nm, g), state1(true) {}
+
+
+
+bool GoodPlayer::placeShips(Board& b) { // randomly place ships in alternating directions
+    Direction dir;
+
+    for (int id = 0; id < game().nShips(); id++) { //place ships on game
+        Point p;
+
+        int counter = 0;
+
+        if (id % 2 == 0) { 
+            dir = HORIZONTAL;
+        }
+        else {
+            dir = VERTICAL;
+        }
+
+        do {
+            counter += 1 ;
+            if (counter == 100) 
+                return false;
+            p = game().randomPoint();
+        } while (!b.placeShip(p, id, dir)); //place random ship s.t. it fits on board
+    }
+    return true;
+}
+
+
+bool GoodPlayer::isValid(Point p) {
+    if (!game().isValid(p)) return false;
+
+    for (int i = 0; i < attacked.size(); i++) { 
+        if (p.r == attacked[i].r && p.c == attacked[i].c) return false;
+    }
+
+    return true;
+}
+
+Point GoodPlayer::recommendAttack() { // saw on youtube, attack diagonals (checkboard) first (state 1), then if diagonal is successfully attacked, change to state 2 and go along that direction
+   
+    Point attack;
+
+    if (state1 || targets.empty()) { 
+
+        state1 = true; //if no more targets to attack in stack go back to state 1
+
+
+        bool even = false; // basically checks for diagonals
+
+        attack = game().randomPoint();
+
+        if ((attack.r + attack.c) % 2 == 0)
+        {
+            even = true;
+        }
+
+        int counter = 0;
+
+        while (isValid(attack) == false || even == false) // we only need to attack even points because every battleship is length 2 
+        {
+            counter += 1;
+            attack = game().randomPoint();
+            if ((attack.r + attack.c) % 2 == 0 || counter >= (((MAXROWS * MAXCOLS) / 2) - 1))
+            {
+                even = true;
+            }
+        }
+        return attack; 
+    }
+
+    else { //state 2
+        attack = targets.top(); //attack point on top of the stack
+        targets.pop();
+        return attack;
+    }
+    return attack;
+}
+
+void GoodPlayer::recordAttackResult(Point p, bool valid_shot, bool shot_hit, bool ship_destroyed, int ship_id) {
+
+    if (!valid_shot)  return;
+
+    attacked.push_back(p); // mark point as attacked
+
+    if (state1) { 
+
+        if (!shot_hit) return;
+
+        else {
+            if (ship_destroyed) { // stay in state 1 if ship destroyed
+                return;
+            }
+            else { 
+                state1 = false;
+
+                // push potential attacks to the stack on all four direction 
+
+                if (isValid(Point(p.r, p.c - 1))) targets.push(Point(p.r, p.c - 1)); // left 
+
+                if (isValid(Point(p.r, p.c + 1))) targets.push(Point(p.r, p.c + 1)); // right
+
+                if (isValid(Point(p.r - 1, p.c))) targets.push(Point(p.r - 1, p.c)); // up 
+
+                if (isValid(Point(p.r + 1, p.c))) targets.push(Point(p.r + 1, p.c)); // down 
+
+                return;
+
+            }
+        }
+    }
+
+    else { //state 2
+        if (!shot_hit) {
+            return;
+        }
+        else {
+            if (ship_destroyed) { // once ship is destroyed we return to state 1 
+                state1 = true; 
+                while (!targets.empty()) { // clear targets
+                    targets.pop();
+                }
+                return;
+            }
+            else { // we stay in state 2 and choose next direction based on last hit's performance
+
+                if (state2_initializer.r == p.r) // we attack horizonally 
+                { 
+                    if (isValid(Point(p.r, p.c - 1))) targets.push(Point(p.r, p.c - 1)); // left 
+
+                    if (isValid(Point(p.r, p.c + 1))) targets.push(Point(p.r, p.c + 1)); // right
+                }
+
+                else if (state2_initializer.c == p.c) // we attack vertically
+                { 
+                    if (isValid(Point(p.r - 1, p.c))) targets.push(Point(p.r - 1, p.c)); // up 
+
+                    if (isValid(Point(p.r + 1, p.c))) targets.push(Point(p.r + 1, p.c)); // down 
+                }
+                return;
+            }
+        }
+
+    }
+}
+
+void GoodPlayer::recordAttackByOpponent(Point p) { ; }
+
+
 
 //*********************************************************************
 //  createPlayer
